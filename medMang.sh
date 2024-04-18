@@ -76,7 +76,6 @@ fi
 
 PROG_LOOP=1
 drawTextHeader "Linux Medication Management TUI" "Author: Jay Reyes C2024"
-drawTextStd "Welcome to the Linux Medication Management TUI tool."
 	while [[ $PROG_LOOP -ne 0 ]]
 	do
 	if [[ $INIT_CONFIG  -ne 1 ]]; then
@@ -216,7 +215,7 @@ drawTextStd "Welcome to the Linux Medication Management TUI tool."
 					case $SUB_CHOICE in
 						"View Journal Entry")
 						drawTextStd "Checking for journal..."
-						if ! [[ -d "${SAVE_DIR}/journal" ]]; then
+						if ! [[ -d "${SAVE_DIR}/appt_journal" ]]; then
 							drawTextStd "No journal found..."
 						else
 							drawTextStd "Opening journal..."
