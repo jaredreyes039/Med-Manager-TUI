@@ -30,6 +30,38 @@ drawTextErr(){
 		"${1}"
 }
 
+recordMedications(){
+	for ((i=0; i < ${1}; i++))
+	do
+		read -p "Name of Medication: " MED_NAME
+		read -p "Date of Expiration (MM/YYYY): " MED_EXP
+		read -p "Dosage Amount (include units): " MED_DOSE
+		read -p "Refills Left: " MED_REFILLS
+		read -p "Next Refill (MM/YYYY): " MED_NEXT
+		echo "Medication: ${MED_NAME} || Exp: ${MED_EXP} | Dosage: ${MED_DOSE} | Refills: ${MED_REFILLS} | Next Refill: ${MED_NEXT}" >> "${SAVE_DIR}/medMang/medLog.txt"
+	done
+}
+
+addJournalEntry() {
+	drawTextStd "Creating entry..."
+	read -p "Enter title: " ENTRY_TITLE 
+	touch "${SAVE_DIR}/journal/jrn_${ENTRY_TITLE}.txt"
+	drawTextStd "What's on your mind? [CTRL+d to Submit]"
+	gum write > "${SAVE_DIR}/journal/jrn_${ENTRY_TITLE}.txt"
+	drawTextStd "Entry recorded!"
+}
+
+addJournalEntry_Appt() {
+	drawTextStd "Creating entry..."
+	read -p "Enter title: " ENTRY_TITLE 
+	touch "${SAVE_DIR}/appt_journal/jrn_${ENTRY_TITLE}.txt"
+	read -p "Appointment Date: " APPT_DATE
+	echo $APPT_DATE >> "${SAVE_DIR}/appt_journal/jrn_${ENTRY_TITLE}.txt"
+	drawTextStd "What's on your mind? [CTRL+d to Subit]"
+	gum write > "${SAVE_DIR}/appt_journal/jrn_${ENTRY_TITLE}.txt"
+	drawTextStd "Entry recorded!"
+}
+
 # CHECK FOR CONFIG
 if ! [[ -d "${HOME}/.config/medMang" ]]; then
 	mkdir "${CONFIG_URL}"
@@ -82,15 +114,7 @@ drawTextStd "Welcome to the Linux Medication Management TUI tool."
 			sed -i "s#SAVE_DIR=#SAVE_DIR=${SAVE_DIR}/medMang#" "${HOME}/.config/medMang/medMang.conf" 
 			sed -i "s#INIT_CONFIG=0#INIT_CONFIG=1#" "${HOME}/.config/medMang/medMang.conf"
 			drawTextStd "Enter the following info to record your medications."
-			for ((i=0; i < $LEN; i++))
-			do
-				read -p "Name of Medication: " MED_NAME
-				read -p "Date of Expiration (MM/YYYY): " MED_EXP
-				read -p "Dosage Amount (include units): " MED_DOSE
-				read -p "Refills Left: " MED_REFILLS
-				read -p "Next Refill (MM/YYYY): " MED_NEXT
-				echo "Medication: ${MED_NAME} || Exp: ${MED_EXP} | Dosage: ${MED_DOSE} | Refills: ${MED_REFILLS} | Next Refill: ${MED_NEXT}" >> "${SAVE_DIR}/medMang/medLog.txt"
-			done
+			recordMedications $LEN
 		fi
 	fi				
 	if [[ $INIT_CONFIG -ne 0 ]]; then
@@ -98,7 +122,7 @@ drawTextStd "Welcome to the Linux Medication Management TUI tool."
 			echo "Checking ${SAVE_DIR} for files..."
 			if [[ -d "${SAVE_DIR}" ]]; then
 				drawTextStd "Files loaded! What are you looking for today?"
-				MAIN_CHOICE=$(gum choose "Med Logs" "Mood Journal" "Appt Logs" "Exit")
+				MAIN_CHOICE=$(gum choose "Med Logs" "Mood Journal" "Appointment Journal" "Exit")
 				case $MAIN_CHOICE in
 					"Exit")
 					PROG_LOOP=0
@@ -123,24 +147,94 @@ drawTextStd "Welcome to the Linux Medication Management TUI tool."
 							exit 1
 						fi
 						drawTextStd "Enter the following info to record your medications."
-						for ((i=0; i < $LEN; i++))
-						do
-							read -p "Name of Medication: " MED_NAME
-							read -p "Date of Expiration (MM/YYYY): " MED_EXP
-							read -p "Dosage Amount (include units): " MED_DOSE
-							read -p "Refills Left: " MED_REFILLS
-							read -p "Next Refill (MM/YYYY): " MED_NEXT
-							echo "Medication: ${MED_NAME} || Exp: ${MED_EXP} | Dosage: ${MED_DOSE} | Refills: ${MED_REFILLS} | Next Refill: ${MED_NEXT}" >> "${SAVE_DIR}/medLog.txt"
-						done
+						recordMedications $LEN
 					esac
 					case $SUB_CHOICE in
 						"Clear Med Log")
-						CONFIRM=$(gum confirm -v "Are you sure you want to clear the medication log? This action cannot be undone.")
-						echo $CONFIRM
-						drawTextErr "Clearing medication log..."
-						> "${SAVE_DIR}/medLog.txt"
+						gum confirm "Are you sure you want to clear the medication log? This action cannot be undone." && drawTextErr "Clearing medication log..." && > "${SAVE_DIR}/medLog.txt" || drawTextStd "Returning to menu..."
 					esac
 				esac
+				case $MAIN_CHOICE in
+					"Mood Journal")
+					SUB_CHOICE=$(gum choose "Add Journal Entry" "View Journal Entry" "Clear Journal")
+					case $SUB_CHOICE in
+						"Add Journal Entry")
+						drawTextStd "Checking for journal..."
+						if ! [[ -d "${SAVE_DIR}/journal" ]]; then
+							drawTextStd "No journal found..."
+							drawTextStd "Building journal..."
+							mkdir "${SAVE_DIR}/journal"
+							if [[ $? -ne 0 ]]; then
+								drawTextErr "ERR: Failed to build journal. Maybe there is an error in your config?"
+							else
+								addJournalEntry
+							fi
+						else
+							addJournalEntry
+						fi
+					esac
+					case $SUB_CHOICE in
+						"View Journal Entry")
+						drawTextStd "Checking for journal..."
+						if ! [[ -d "${SAVE_DIR}/journal" ]]; then
+							drawTextStd "No journal found..."
+						else
+							drawTextStd "Opening journal..."
+							SEL_ENTRY=$(gum file "${SAVE_DIR}/journal")
+							cat $SEL_ENTRY
+						fi
+					esac
+					case $SUB_CHOICE in
+						"Clear Journal")
+						drawTextStd "Checking for journal..."
+						if ! [[ -d "${SAVE_DIR}/journal" ]]; then
+							drawTextStd "No journal found..."
+						else
+							gum confirm && drawTextErr "Clearing journal..." && rm -rf "${SAVE_DIR}/journal" && drawTextErr "Journal cleared!" || drawTextStd "Returning to menu..."
+						fi
+					esac
+				esac
+				case $MAIN_CHOICE in
+					"Appointment Journal")
+					SUB_CHOICE=$(gum choose "Add Appointment" "View Journal Entry" "Clear Appointment Journal")
+					case $SUB_CHOICE in
+						"Add Appointment")
+						drawTextStd "Checking for journal..."
+						if ! [[ -d "${SAVE_DIR}/appt_journal" ]]; then
+							drawTextStd "No journal found..."
+							drawTextStd "Building journal..."
+							mkdir "${SAVE_DIR}/appt_journal"
+							if [[ $? -ne 0 ]]; then
+								drawTextErr "ERR: Failed to build journal. Maybe there is an error in your config?"
+							else
+								addJournalEntry_Appt
+							fi
+						else
+							addJournalEntry_Appt
+						fi
+					esac
+					case $SUB_CHOICE in
+						"View Journal Entry")
+						drawTextStd "Checking for journal..."
+						if ! [[ -d "${SAVE_DIR}/journal" ]]; then
+							drawTextStd "No journal found..."
+						else
+							drawTextStd "Opening journal..."
+							SEL_ENTRY=$(gum file "${SAVE_DIR}/appt_journal")
+							cat $SEL_ENTRY
+						fi
+					esac
+					case $SUB_CHOICE in
+						"Clear Appointment Journal")
+						drawTextStd "Checking for journal..."
+						if ! [[ -d "${SAVE_DIR}/appt_journal" ]]; then
+							drawTextStd "No journal found..."
+						else
+							gum confirm && drawTextErr "Clearing journal..." && rm -rf "${SAVE_DIR}/appt_journal" && drawTextErr "Journal cleared!" || drawTextStd "Returning to menu..."
+						fi
+					esac
+				esac
+
 			else
 				drawTextErr "ERR: That directory doesn't exist."
 				exit 1
